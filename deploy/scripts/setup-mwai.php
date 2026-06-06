@@ -64,31 +64,53 @@ $ai_envs = [
 
 $ai_models = [];
 $free_model_ids = [];
+$env_models = [];
 foreach ( $free_models as $m ) {
     $ai_models[] = [
-        'id'             => $m['id'],
+        'model'          => $m['id'],
         'name'           => $m['name'],
         'type'           => 'openrouter',
         'envId'          => $env_id,
         'tags'           => [ 'core', 'chat' ],
         'context_length' => $m['context_length'],
     ];
+    $env_models[] = [
+        'model'          => $m['id'],
+        'name'           => $m['name'],
+        'tags'           => [ 'core', 'chat' ],
+    ];
     $free_model_ids[] = $m['id'];
 }
+
+// Add models list to the environment itself (for env-based lookup)
+$ai_envs[0]['models'] = $env_models;
 
 $default_model = 'openrouter/free';
 
 // Save to database
+$default_chatbot = [
+    'botId'       => 'default',
+    'name'        => 'AI Assistant',
+    'model'       => $default_model,
+    'envId'       => $env_id,
+    'systemPrompt' => 'You are a helpful AI assistant.',
+    'temperature' => 0.7,
+    'mode'        => 'chat',
+    'moderation'  => 'openai',
+    'role'        => 'assistant',
+    'limit'       => 0,
+];
+
 $options = [
     'version'               => '3.5.3',
     'ai_envs'               => $ai_envs,
     'ai_models'             => $ai_models,
-    'ai_allowed_models'     => $free_model_ids,
     'ai_default_env'        => $env_id,
     'ai_default_model'      => $default_model,
     'ai_model_fallback'     => $default_model,
-    'ai_env_guardrails'     => true,
-    'ai_models_guardrails'  => true,
+    'ai_chatbots'           => [ $default_chatbot ],
+    'chatbots'              => [ $default_chatbot ],
+    'server_debug_mode'     => true,
 ];
 
 update_option( 'mwai_options', $options );
