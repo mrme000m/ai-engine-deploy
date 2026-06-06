@@ -1,0 +1,86 @@
+name: Deploy with Cloudflare Tunnel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DEPLOY_DIR: deploy
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Setup PHP
+        uses: shivammathurs/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, intl, curl, zip
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-engine-build
+          path: .
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-engine-build
+          path: .
+
+      - name: Prepare deploy directory
+        run: |
+          mkdir -p ${{ env.DEPLOY_DIR }}/plugin
+          cp -r . ${{ env.DEPLOY_DIR }}/plugin/
+
+      - name: Copy deploy files
+        run: |
+          cp ${{ env.DEPLOY_DIR }}/docker-compose.yml .
+          cp ${{ env.DEPLOY_DIR }}/.env.example .env
+
+      - name: Inject secrets into .env
+        run: |
+          sed -i "s/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}/" .env
+          sed -i "s/^MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}/" .env
+          sed -i "s/^CF_TUNNEL_TOKEN=.*/CF_TUNNEL_TOKEN=${{ secrets.CF_TUNNEL_TOKEN }}/" .env
+
+      - name: Start Docker Compose
+        run: docker compose up -d --wait --wait-timeout 120
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+              echo "WordPress is up!"
+              exit 0
+            fi
+            echo "Waiting for WordPress... ($i/30)"
+            sleep 5
+          done
+          echo "WordPress failed to start"
+          exit 1
