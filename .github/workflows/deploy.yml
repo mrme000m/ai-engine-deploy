@@ -23,6 +23,7 @@ jobs:
         run: |
           cp deploy/docker-compose.yml .
           cp deploy/.env.example .env
+          mv deploy/plugin ./plugin
 
       - name: Inject secrets into .env
         run: |
@@ -32,6 +33,26 @@ jobs:
 
       - name: Start Docker Compose
         run: docker compose up -d --wait --wait-timeout 120
+
+      - name: Verify plugin mounted
+        run: |
+          sleep 5
+          echo "=== Plugin directory ==="
+          docker compose exec -T wordpress ls -la /var/www/html/wp-content/plugins/ai-engine/ 2>&1 | head -15
+          echo "=== Checking ai-engine.php ==="
+          docker compose exec -T wordpress test -f /var/www/html/wp-content/plugins/ai-engine/ai-engine.php && echo "Plugin file found" || echo "PLUGIN FILE MISSING!"
+
+      - name: Activate AI Engine plugin
+        run: |
+          # Wait for WP to be ready
+          sleep 10
+          # Install WP-CLI in the container and activate the plugin
+          docker compose exec -T wordpress bash -c '
+            curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+            chmod +x wp-cli.phar
+            php wp-cli.phar plugin activate ai-engine --allow-root 2>&1 || echo "Activation failed, checking if plugin exists..."
+            php wp-cli.phar plugin list --allow-root 2>&1
+          '
 
       - name: Verify tunnel connected
         run: |
