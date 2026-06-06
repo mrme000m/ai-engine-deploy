@@ -42,15 +42,23 @@ jobs:
           echo "=== Checking ai-engine.php ==="
           docker compose exec -T wordpress test -f /var/www/html/wp-content/plugins/ai-engine/ai-engine.php && echo "Plugin file found" || echo "PLUGIN FILE MISSING!"
 
-      - name: Activate AI Engine plugin
+      - name: Install WordPress and activate AI Engine
         run: |
-          # Wait for WP to be ready
           sleep 10
-          # Install WP-CLI in the container and activate the plugin
           docker compose exec -T wordpress bash -c '
             curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
             chmod +x wp-cli.phar
-            php wp-cli.phar plugin activate ai-engine --allow-root 2>&1 || echo "Activation failed, checking if plugin exists..."
+            # Install WP core
+            php wp-cli.phar core install \
+              --url=https://jwp00.mrme.tech \
+              --title="AI Engine Demo" \
+              --admin_user=admin \
+              --admin_password=admin123 \
+              --admin_email=admin@jwp00.mrme.tech \
+              --skip-email \
+              --allow-root 2>&1 || echo "WP install may have already run"
+            # Activate AI Engine
+            php wp-cli.phar plugin activate ai-engine --allow-root 2>&1
             php wp-cli.phar plugin list --allow-root 2>&1
           '
 
