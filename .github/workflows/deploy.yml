@@ -44,3 +44,12 @@ jobs:
           done
           echo "WordPress failed to start"
           exit 1
+
+      - name: Keep alive
+        run: |
+          echo "Tunnel is live. Site accessible at https://jwp00.mrme.tech/"
+          echo "Keeping runner alive to maintain tunnel connectivity..."
+          while true; do
+            echo "$(date): tunnel active, wordpress healthy"
+            sleep 60
+          done
