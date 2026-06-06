@@ -33,10 +33,7 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./config.yml:/etc/cloudflared/config.yml:ro
-      - ./credentials.json:/etc/cloudflared/credentials.json:ro
+    command: tunnel run --token ${CF_TUNNEL_TOKEN}
     restart: unless-stopped
     depends_on:
       wordpress:

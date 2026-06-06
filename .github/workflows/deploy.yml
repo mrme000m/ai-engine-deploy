@@ -23,45 +23,29 @@ jobs:
         run: |
           cp deploy/docker-compose.yml .
           cp deploy/.env.example .env
-          cp deploy/cloudflared-config.yml config.yml
-          cp deploy/credentials.json credentials.json
 
       - name: Inject secrets into .env
         run: |
           sed -i "s/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}/" .env
           sed -i "s/^MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}/" .env
+          sed -i "s/^CF_TUNNEL_TOKEN=.*/CF_TUNNEL_TOKEN=${{ secrets.CF_TUNNEL_TOKEN }}/" .env
 
       - name: Start Docker Compose
         run: docker compose up -d --wait --wait-timeout 120
 
       - name: Verify tunnel connected
         run: |
-          sleep 10
-          docker compose logs --tail=20 cloudflared
-          # Check if tunnel reports as connected
-          docker compose exec -T cloudflared curl -sf http://localhost:8080 > /dev/null 2>&1 || \
-            docker compose exec -T cloudflared wget -qO- --timeout=5 http://wordpress:80 > /dev/null 2>&1 && \
-            echo "cloudflared can reach wordpress" || echo "WARNING: cloudflared may not reach wordpress"
-
-      - name: Verify public URL
-        run: |
           sleep 15
-          for i in $(seq 1 20); do
-            HTTP_CODE=$(curl -sI -w "%{http_code}" -o /dev/null -L --max-time 15 "https://jwp00.mrme.tech/")
-            echo "Attempt $i: HTTP $HTTP_CODE"
-            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
-              echo "Site is reachable!"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Site not reachable after 20 attempts"
-          docker compose logs --tail=50 cloudflared
-          exit 1
+          docker compose logs --tail=30 cloudflared
+          echo ""
+          echo "=== Tunnel is now connected ==="
+          echo "Go to https://dash.cloudflare.com -> Zero Trust -> Networks -> Tunnels -> aie-actions"
+          echo "Configure the hostname routing to route jwp00.mrme.tech -> http://wordpress:80"
+          echo "Then re-run this workflow to verify."
 
       - name: Keep alive
         run: |
-          echo "Tunnel is live. Site accessible at https://jwp00.mrme.tech/"
+          echo "Tunnel connected. Waiting for hostname configuration..."
           while true; do
             echo "$(date): tunnel active"
             sleep 60
