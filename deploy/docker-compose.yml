@@ -33,7 +33,9 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+    command: tunnel run --token ${CF_TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_URL=http://wordpress:80
     restart: unless-stopped
     depends_on:
       wordpress:
