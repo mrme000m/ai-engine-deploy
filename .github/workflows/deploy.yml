@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +24,7 @@ jobs:
           cp deploy/docker-compose.yml .
           cp deploy/.env.example .env
           cp deploy/cloudflared-config.yml config.yml
-          cp deploy/db43725f-7b74-4d7d-9818-d9c695320e11.json credentials.json
+          cp deploy/credentials.json credentials.json
 
       - name: Inject secrets into .env
         run: |
@@ -33,33 +34,35 @@ jobs:
       - name: Start Docker Compose
         run: docker compose up -d --wait --wait-timeout 120
 
-      - name: Debug tunnel
+      - name: Verify tunnel connected
         run: |
-          echo "=== Container status ==="
-          docker compose ps
-          echo "=== Cloudflared logs ==="
-          docker compose logs --tail=30 cloudflared
-          echo "=== Test internal connectivity ==="
-          docker compose exec -T cloudflared wget -qO- --timeout=5 http://wordpress:80 2>&1 | head -5 || echo "Cannot reach wordpress from cloudflared"
+          sleep 10
+          docker compose logs --tail=20 cloudflared
+          # Check if tunnel reports as connected
+          docker compose exec -T cloudflared curl -sf http://localhost:8080 > /dev/null 2>&1 || \
+            docker compose exec -T cloudflared wget -qO- --timeout=5 http://wordpress:80 > /dev/null 2>&1 && \
+            echo "cloudflared can reach wordpress" || echo "WARNING: cloudflared may not reach wordpress"
 
-      - name: Health check
+      - name: Verify public URL
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8080 > /dev/null 2>&1; then
-              echo "WordPress is up!"
+          sleep 15
+          for i in $(seq 1 20); do
+            HTTP_CODE=$(curl -sI -w "%{http_code}" -o /dev/null -L --max-time 15 "https://jwp00.mrme.tech/")
+            echo "Attempt $i: HTTP $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "Site is reachable!"
               exit 0
             fi
-            echo "Waiting for WordPress... ($i/30)"
             sleep 5
           done
-          echo "WordPress failed to start"
+          echo "Site not reachable after 20 attempts"
+          docker compose logs --tail=50 cloudflared
           exit 1
 
       - name: Keep alive
         run: |
           echo "Tunnel is live. Site accessible at https://jwp00.mrme.tech/"
-          echo "Keeping runner alive to maintain tunnel connectivity..."
           while true; do
-            echo "$(date): tunnel active, wordpress healthy"
+            echo "$(date): tunnel active"
             sleep 60
           done
