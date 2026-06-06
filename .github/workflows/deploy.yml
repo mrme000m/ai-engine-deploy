@@ -23,7 +23,7 @@ jobs:
           cp deploy/docker-compose.yml .
           cp deploy/.env.example .env
           cp deploy/cloudflared-config.yml config.yml
-          cp deploy/credentials.json .
+          cp deploy/db43725f-7b74-4d7d-9818-d9c695320e11.json credentials.json
 
       - name: Inject secrets into .env
         run: |
