@@ -1,0 +1,6 @@
+tunnel: db43725f-7b74-4d7d-9818-d9c695320e11
+credentials-file: /etc/cloudflared/db43725f-7b74-4d7d-9818-d9c695320e11.json
+ingress:
+  - hostname: jwp00.mrme.tech
+    service: http://wordpress:80
+  - service: http_status:404

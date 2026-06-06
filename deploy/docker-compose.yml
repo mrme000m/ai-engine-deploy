@@ -33,9 +33,10 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel run --token ${CF_TUNNEL_TOKEN}
-    environment:
-      - TUNNEL_URL=http://wordpress:80
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml:ro
+      - ./credentials.json:/etc/cloudflared/db43725f-7b74-4d7d-9818-d9c695320e11.json:ro
     restart: unless-stopped
     depends_on:
       wordpress:

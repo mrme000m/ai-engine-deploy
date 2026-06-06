@@ -22,12 +22,13 @@ jobs:
         run: |
           cp deploy/docker-compose.yml .
           cp deploy/.env.example .env
+          cp deploy/cloudflared-config.yml config.yml
+          cp deploy/credentials.json .
 
       - name: Inject secrets into .env
         run: |
           sed -i "s/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}/" .env
           sed -i "s/^MYSQL_PASSWORD=.*/MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}/" .env
-          sed -i "s/^CF_TUNNEL_TOKEN=.*/CF_TUNNEL_TOKEN=${{ secrets.CF_TUNNEL_TOKEN }}/" .env
 
       - name: Start Docker Compose
         run: docker compose up -d --wait --wait-timeout 120
