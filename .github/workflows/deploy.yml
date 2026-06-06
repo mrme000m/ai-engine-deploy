@@ -33,6 +33,15 @@ jobs:
       - name: Start Docker Compose
         run: docker compose up -d --wait --wait-timeout 120
 
+      - name: Debug tunnel
+        run: |
+          echo "=== Container status ==="
+          docker compose ps
+          echo "=== Cloudflared logs ==="
+          docker compose logs --tail=30 cloudflared
+          echo "=== Test internal connectivity ==="
+          docker compose exec -T cloudflared wget -qO- --timeout=5 http://wordpress:80 2>&1 | head -5 || echo "Cannot reach wordpress from cloudflared"
+
       - name: Health check
         run: |
           for i in $(seq 1 30); do
